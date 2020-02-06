@@ -1,9 +1,3 @@
-const easing = {
-  linear: (t) => t,
-  easeIn: (t) => t * t,
-  easeOut: (t) => t * (2 - t),
-  easeInOut: (t) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
-};
 
 class Animation {
   constructor(settings) {
@@ -23,6 +17,7 @@ class Animation {
     this.running = true;
 		this.completed = false;
     this.valueMap = settings.valueMap || options.valueMap;
+		this.buffer = options.buffer || 0;
     this.value = function() {
       return(this.valueMap
         ? this.valueMap.replace('$v', this.nextUpdate) : this.nextUpdate
@@ -97,6 +92,8 @@ class AnimationManager {
 			startTime: null,
 			animation: settings[1].map(anim => new Animation(anim)),
 			settingsRef: settings,
+			buffer: settings[2] ? settings[2].buffer || 0 : 0,
+			animationFrame: null
 			// dims: settings[0].getBoundingClientRect()
 		}));
 		this.initializeStyles();
@@ -105,7 +102,7 @@ class AnimationManager {
 	}
 
 	animate = animation => {
-		requestAnimationFrame(timeStamp => {
+		return requestAnimationFrame(timeStamp => {
 			animation.animating = true;
 			let styles = {};
 			let completed = true;
@@ -115,7 +112,9 @@ class AnimationManager {
 			animation.animation.forEach(animClass => {
 				if (!animClass.completed) {
 					animClass.logic(runtime);
-					styles[animClass.property] = animClass.value();
+					if (animClass.property === 'transform' && styles.transform)
+						styles.transform += ' ' + animClass.value()
+					else styles[animClass.property] = animClass.value();
 					animClass.updated();
 					if (!animClass.completed) completed = false;
 				}
@@ -130,26 +129,34 @@ class AnimationManager {
 			}
 		})
 	}
-	getPosition = (element) => {
-    var xPosition = 0;
-    var yPosition = 0;
-
-    while(element) {
-        yPosition += (element.offsetTop - element.scrollTop + element.clientTop);
-        element = element.offsetParent;
+	getPosition = function ( elem ) {
+    var location = 0;
+    if (elem.offsetParent) {
+        do {
+            location += elem.offsetTop;
+            elem = elem.offsetParent;
+        } while (elem);
     }
-
-    return {y: yPosition };
-}
+    return location >= 0 ? location : 0;
+};
 
 	handleScroll = e => {
 		let scrolled = window.scrollY;
-		this.animations.forEach(animation => {
-			const {y} = this.getPosition(animation.target);
+		this.animations.forEach((animation, i) => {
+			const y = this.getPosition(animation.target);
+			const topOfWindow = window.scrollY;
+			const bottomOfWindow = window.scrollY + window.innerHeight;
+			const elemHeight = animation.target.clientHeight;
+			console.log(animation.buffer)
 			let canAnimate = !animation.completed && !animation.animating;
-			if (canAnimate && y > window.scrollY && y - scrollY > 0)
-				this.animate(animation)
-			else if (animation.completed && y < window.scrollY && scrollY > y + animation.target.clientHeight) {
+			const inView = bottomOfWindow > y - animation.buffer && topOfWindow < y + animation.buffer;
+			if (canAnimate && inView)
+				animation.animationFrame = this.animate(animation)
+			else if (!inView) {
+				if (animation.animating) {
+					cancelAnimationFrame(animation.animationFrame);
+					animation.animating = false;
+				}
 				animation.completed = false;
 				animation.startTime = null;
 					console.log('reset')
@@ -178,21 +185,3 @@ class AnimationManager {
 		}
 	}
 }
-
-
-const docAnimations = new AnimationManager([
-	[
-		document.getElementById('light-grad-text'),
-		[
-			['opacity', {0: 0, 100: 1}, 200],
-			['transform', {0: -100, 80: 5, 100: 0}, 500, {valueMap: 'translateY($v%)', easing: 'easeOut'}]
-		],
-	],
-	[
-		document.getElementById('home-head-text'),
-		[
-			['opacity', {0: 0, 100: 1}, 200, {delay: 400}],
-			['transform', {0: 100, 80: -5, 100: 0}, 500, {delay: 400, easing: 'easeOut', valueMap: 'translateX($v%)'}]
-		]
-	]
-])
