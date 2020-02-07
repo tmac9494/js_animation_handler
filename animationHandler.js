@@ -1,3 +1,9 @@
+const easing = {
+  linear: (t) => t,
+  easeIn: (t) => t * t,
+  easeOut: (t) => t * (2 - t),
+  easeInOut: (t) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
+};
 
 class Animation {
   constructor(settings) {
@@ -29,7 +35,17 @@ class Animation {
     this.initialize();
   }
 
-  initialize() {
+  reset = () => {
+    this.completed = false;
+    this.running = true;
+    this.step = 0;
+    this.nextUpdate = this.schedule[0];
+    this.prevRuntime = 0;
+    this.prevDuration = 0;
+    this.lastUpdated = this.schedule[0];
+  }
+
+  initialize = () => {
     this.animationStatus = {};
     const scheduleKeys = Object.keys(this.schedule);
     scheduleKeys.forEach((percent, i) => {
@@ -93,7 +109,7 @@ class AnimationManager {
 			animation: settings[1].map(anim => new Animation(anim)),
 			settingsRef: settings,
 			buffer: settings[2] ? settings[2].buffer || 0 : 0,
-			animationFrame: null
+			animationFrame: null,
 			// dims: settings[0].getBoundingClientRect()
 		}));
 		this.initializeStyles();
@@ -108,7 +124,6 @@ class AnimationManager {
 			let completed = true;
 			if (animation.startTime === null) animation.startTime = timeStamp;
 			const runtime = timeStamp - animation.startTime;
-			// console.log(animation)
 			animation.animation.forEach(animClass => {
 				if (!animClass.completed) {
 					animClass.logic(runtime);
@@ -129,27 +144,12 @@ class AnimationManager {
 			}
 		})
 	}
-	getPosition = function ( elem ) {
-    var location = 0;
-    if (elem.offsetParent) {
-        do {
-            location += elem.offsetTop;
-            elem = elem.offsetParent;
-        } while (elem);
-    }
-    return location >= 0 ? location : 0;
-};
 
 	handleScroll = e => {
 		let scrolled = window.scrollY;
 		this.animations.forEach((animation, i) => {
-			const y = this.getPosition(animation.target);
-			const topOfWindow = window.scrollY;
-			const bottomOfWindow = window.scrollY + window.innerHeight;
-			const elemHeight = animation.target.clientHeight;
-			console.log(animation.buffer)
 			let canAnimate = !animation.completed && !animation.animating;
-			const inView = bottomOfWindow > y - animation.buffer && topOfWindow < y + animation.buffer;
+      const inView = isElementInView(animation.target, animation.buffer);
 			if (canAnimate && inView)
 				animation.animationFrame = this.animate(animation)
 			else if (!inView) {
@@ -157,10 +157,13 @@ class AnimationManager {
 					cancelAnimationFrame(animation.animationFrame);
 					animation.animating = false;
 				}
-				animation.completed = false;
-				animation.startTime = null;
-					console.log('reset')
-				animation.animation = animation.settingsRef[1].map(anim => new Animation(anim));
+        if (animation.completed) animation.animation.forEach(animClass => {
+  				animation.completed = false;
+  				animation.startTime = null;
+          animClass.reset();
+          animClass.initialize();
+        });
+				// animation.animation = animation.settingsRef[1].map(anim => new Animation(anim));
 				this.initializeStyles(animation)
 			}
 		})
