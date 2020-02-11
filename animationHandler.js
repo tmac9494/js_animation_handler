@@ -1,9 +1,3 @@
-const easing = {
-  linear: (t) => t,
-  easeIn: (t) => t * t,
-  easeOut: (t) => t * (2 - t),
-  easeInOut: (t) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
-};
 
 class Animation {
   constructor(settings) {
@@ -68,7 +62,7 @@ class Animation {
     const duration = thisStep.duration - this.prevDuration;
     let calcRuntime = runtime - this.delay;
     if (runtime >= this.delay) {
-      const progress = easing[this.easing](
+      const progress = animationEasing[this.easing](
         Math.min((calcRuntime - this.prevRuntime) / duration, 1)
       );
       const distance = thisStep.from > thisStep.to
