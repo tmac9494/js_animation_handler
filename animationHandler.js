@@ -98,11 +98,11 @@ class AnimationManager {
 		this.animations = animations.map(settings => ({
 			completed: false,
 			animating: false,
-			target: settings[0],
+			target: Array.isArray(settings[0]) ? settings[0][0] : settings[0],
+      detectionElement: Array.isArray(settings[0]) ? settings[0][1] : null,
 			startTime: null,
 			animation: settings[1].map(anim => new Animation(anim)),
 			settingsRef: settings,
-			buffer: settings[2] ? settings[2].buffer || 0 : 0,
 			animationFrame: null,
 			// dims: settings[0].getBoundingClientRect()
 		}));
@@ -143,7 +143,7 @@ class AnimationManager {
 		let scrolled = window.scrollY;
 		this.animations.forEach((animation, i) => {
 			let canAnimate = !animation.completed && !animation.animating;
-      const inView = isElementInView(animation.target, animation.buffer);
+      const inView = isElementInView(animation.detectionElement || animation.target);
 			if (canAnimate && inView)
 				animation.animationFrame = this.animate(animation)
 			else if (!inView) {
