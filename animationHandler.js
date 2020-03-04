@@ -27,9 +27,11 @@ class Animation {
       this.lastUpdate = this.nextUpdate;
     }
     this.initialize();
+    ['initialize', 'reset', 'logic']
+    .forEach(fName =>  this[fName].bind(this) );
   }
 
-  reset = () => {
+  reset() {
     this.completed = false;
     this.running = true;
     this.step = 0;
@@ -39,7 +41,7 @@ class Animation {
     this.lastUpdated = this.schedule[0];
   }
 
-  initialize = () => {
+  initialize() {
     this.animationStatus = {};
     const scheduleKeys = Object.keys(this.schedule);
     scheduleKeys.forEach((percent, i) => {
@@ -55,7 +57,7 @@ class Animation {
     })
   }
 
-  logic = (runtime) => {
+  logic(runtime) {
 		// console.log('logic')
     const thisStep = this.animationStatus['step' + this.step];
     const nextStep = this.animationStatus['step' + (this.step + 1)];
@@ -108,10 +110,12 @@ class AnimationManager {
 		}));
 		this.initializeStyles();
 		this.handleScroll();
-		window.addEventListener('scroll', this.handleScroll);
+		window.addEventListener('scroll', this.handleScroll.bind(this), {passive: true});
+    ['animate', 'handleScroll', 'initializeStyles']
+    .forEach(fName =>  this[fName].bind(this) );
 	}
 
-	animate = animation => {
+	animate(animation) {
 		return requestAnimationFrame(timeStamp => {
 			animation.animating = true;
 			let styles = {};
@@ -139,7 +143,7 @@ class AnimationManager {
 		})
 	}
 
-	handleScroll = e => {
+	handleScroll(e) {
 		let scrolled = window.scrollY;
 		this.animations.forEach((animation, i) => {
 			let canAnimate = !animation.completed && !animation.animating;
@@ -163,7 +167,7 @@ class AnimationManager {
 		})
 	}
 
-	initializeStyles = (animationFromScroll=null) => {
+	initializeStyles(animationFromScroll=null) {
 		const setStyles = anim => {
 			let styles = {};
 			anim.animation.forEach(animClass => {
